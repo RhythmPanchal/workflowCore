@@ -1,0 +1,11 @@
+pluginManagement {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    plugins {
+        id 'io.quarkus' version '3.29.0'
+    }
+}
+
+rootProject.name = 'code-with-quarkus'
