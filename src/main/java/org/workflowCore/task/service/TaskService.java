@@ -2,6 +2,7 @@ package org.workflowCore.task.service;
 
 // PURPOSE: Business logic for task operations
 
+import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import org.workflowCore.task.dto.TaskCreateDTO;
@@ -13,6 +14,8 @@ import org.workflowCore.task.entity.TaskStatus;
 import org.workflowCore.task.exception.TaskNotFoundException;
 import org.workflowCore.task.repository.TaskRepository;
 import jakarta.inject.Inject;
+import org.workflowCore.user.entity.User;
+import org.workflowCore.user.repository.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -26,20 +29,32 @@ public class TaskService {
     @Inject
     TaskRepository taskRepository;
 
+    @Inject
+    UserRepository userRepository;
+
     @Transactional
-    public TaskDTO createTask(TaskCreateDTO createDTO) {
+    public TaskDTO createTask(TaskCreateDTO createDTO, String username) {
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
         Task task = new Task();
         task.title = createDTO.title;
         task.description = createDTO.description;
         task.status = createDTO.status != null ? createDTO.status : TaskStatus.PENDING;
         task.priority = createDTO.priority != null ? createDTO.priority : TaskPriority.MEDIUM;
+        task.owner = user;
         taskRepository.persist(task);
         return toDTO(task);
     }
 
     @Transactional
-    public TaskDTO updateTask(Long id, TaskUpdateDTO updateDTO){
-       Task task = taskRepository.findByIdOptional(id)
+    public TaskDTO updateTask(Long id, TaskUpdateDTO updateDTO, String username){
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(  ()-> new IllegalArgumentException("User not found"));
+
+        Task task = taskRepository.findByIdOptional(id)
                .orElseThrow(  ()-> new TaskNotFoundException(id));
 
        if( updateDTO.title != null ){
@@ -48,22 +63,27 @@ public class TaskService {
        if( updateDTO.description != null ) {
            task.description = updateDTO.description;
        }
-         if( updateDTO.status != null ){
-              task.status = updateDTO.status;
-         }
-        if( updateDTO.priority != null ){
-            task.priority = updateDTO.priority;
-        }
-            return toDTO(task);
+       if( updateDTO.status != null ){
+           task.status = updateDTO.status;
+       }
+       if( updateDTO.priority != null ){
+           task.priority = updateDTO.priority;
+       }
+       return toDTO(task);
     }
 
 
     @Transactional
-    public void deleteTask(Long id){
+    public void deleteTask(Long id, String username){
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(  ()-> new IllegalArgumentException("User not found"));
+
         if( !taskRepository.deleteById(id)){
             throw new TaskNotFoundException(id);
         }
     }
+
 
     public TaskDTO getTaskById(Long id) {
         Task task = taskRepository.findByIdOptional(id)
@@ -118,6 +138,16 @@ public class TaskService {
         );
     }
 
+    public List<TaskDTO> getUserTasks(String username, int page, int size) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(()-> new IllegalArgumentException("User not found"));
 
+        return taskRepository.find("owner", user)
+                .page(Page.of(page,size))
+                .list()
+                .stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
 
 }

@@ -6,6 +6,7 @@ import io.quarkus.hibernate.orm.panache.PanacheEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import org.workflowCore.user.entity.User;
 
 import java.time.LocalDateTime;
 
@@ -36,6 +37,10 @@ public class Task extends PanacheEntity {
 
     @Column(name = "updated_at")
     public LocalDateTime updateAt ;
+
+    @ManyToOne(fetch = FetchType.LAZY) //LAZY =load only when acccessed; EAGER = immediately when parent is loaded.
+    @JoinColumn(name = "user_id") //whole user object is related to a task.
+    public User owner;
 
     @PrePersist
     protected void onCreate() {

@@ -1,11 +1,14 @@
 package org.workflowCore.task.resource;
 
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
 import org.workflowCore.task.dto.TaskCreateDTO;
 import org.workflowCore.task.dto.TaskDTO;
 import org.workflowCore.task.dto.TaskUpdateDTO;
@@ -21,13 +24,16 @@ import java.util.Map;
 @Path("/api/tasks")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@RolesAllowed({"USER", "ADMIN"})
 public class TaskResource {
     @Inject
     TaskService taskService;
 
     @POST
-    public Response createTask(@Valid TaskCreateDTO createDTO){
-        TaskDTO created = taskService.createTask(createDTO);
+    public Response createTask(@Valid TaskCreateDTO createDTO,
+            @Context SecurityContext securityContext){
+        String username = securityContext.getUserPrincipal().getName();
+        TaskDTO created = taskService.createTask(createDTO, username);
         return Response.status(Response.Status.CREATED).entity(created).build();
     }
 
@@ -87,16 +93,32 @@ public class TaskResource {
     @Path("/{id}")
     public Response updateTask(
             @PathParam("id") Long id,
-            @Valid TaskUpdateDTO updateDTO) {
-        TaskDTO updatedTask = taskService.updateTask(id, updateDTO);
+            @Valid TaskUpdateDTO updateDTO,
+            @Context SecurityContext securityContext) {
+        String username = securityContext.getUserPrincipal().getName();
+        TaskDTO updatedTask = taskService.updateTask(id, updateDTO, username);
         return Response.ok(updatedTask).build();
     }
 
     @DELETE
     @Path("/{id}")
-    public Response deleteTask(@PathParam("id") Long id) {
-        taskService.deleteTask(id);
+    public Response deleteTask(@PathParam("id") Long id,
+                               @Context SecurityContext securityContext) {
+        String username = securityContext.getUserPrincipal().getName();
+        taskService.deleteTask(id, username);
         return Response.noContent().build();
+    }
+
+    @GET
+    @Path("/my-tasks")
+    public Response getMyTasks(
+            @QueryParam("page") @DefaultValue("0") int page,
+            @QueryParam("size") @DefaultValue("10") int size,
+            @Context SecurityContext securityContext
+    ){
+        String username = securityContext.getUserPrincipal().getName();
+        List<TaskDTO> tasks = taskService.getUserTasks(username, page, size) ;
+        return Response.ok(tasks).build();
     }
 }
 
